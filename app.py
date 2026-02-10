@@ -163,7 +163,7 @@ if st.button("Check Eligibility"):  # check eligibility
         st.success(" User data saved to SQL database!")
         if st.session_state.get("admin_logged_in"):
             conn = sqlite3.connect("loan_data.db")
-            df_new = pd.read_sql_query("SELECT rowid, * FROM loans", conn)
+            df_new = pd.read_sql_query("SELECT * FROM loans", conn)
             df_new_display = df_new.copy()
             df_new_display.insert(0, "ID", range(1, len(df_new_display) + 1))
             st.session_state.df_display = df_new_display
@@ -175,7 +175,7 @@ if st.button("Check Eligibility"):  # check eligibility
             st.write(f"• {r}") 
 
 # Admin Panel   
-# ------------------- Admin Panel -------------------
+
 st.sidebar.title("🔐 Admin Panel")
 stored_hash = st.secrets.get("ADMIN_PASSWORD_HASH")
 
@@ -213,7 +213,7 @@ if st.session_state.admin_logged_in:
 
     try:
         # Load data from DB
-        df = pd.read_sql_query("SELECT rowid, * FROM loans", conn)
+        df = pd.read_sql_query("SELECT * FROM loans", conn)
 
         # Placeholders to update table, metrics, chart
         table_placeholder = st.empty()
@@ -256,29 +256,29 @@ if st.session_state.admin_logged_in:
         with col1:
             df_display = st.session_state.df_display
             if not df_display.empty:
-                rowid_options = df_display["rowid"].tolist()
+                id_options = sorted(df_display["id"].tolist())
                 # Use a placeholder/default to force no selection initially
-                rowid_to_del = st.selectbox(
-                "Select RowID to delete",
-                options=["-- Select a row --"] + rowid_options,
+                selected_id = st.selectbox(
+                "Select applicant to delete",
+                options=["-- Select a row --"] + id_options,
                 format_func=lambda x: str(x) if x == "-- Select a row --" else
-                f"RowID {x} - {df_display.loc[df_display['rowid'] == x, 'name'].values[0]}"
+                f"ID {x} - {df_display.loc[df_display['id'] == x, 'name'].values[0]}"
                 )
                 if st.button("🗑️ Delete Selected", key="delete_single"):
-                    if rowid_to_del == "-- Select a row --":
+                    if selected_id == "-- Select a row --":
                         st.warning("Please select a row to delete.")
                     else:
                         try:
-                            cursor.execute("DELETE FROM loans WHERE rowid=?", (rowid_to_del,))
+                            cursor.execute("DELETE FROM loans WHERE id=?", (selected_id,))
                             conn.commit()
                             # Reload table from DB
-                            df_new = pd.read_sql_query("SELECT rowid, * FROM loans", conn)
+                            df_new = pd.read_sql_query("SELECT * FROM loans", conn)
                             df_new_display = df_new.copy()
                             df_new_display.insert(0, "ID", range(1, len(df_new_display)+1))
                             st.session_state.df_display = df_new_display
 
                             refresh_table()
-                            st.success(f"Deleted row with RowID {rowid_to_del}")
+                            st.success(f"Deleted row with id {selected_id}")
                         except Exception as e:
                             st.error(f"Error deleting record: {e}")
             else:
@@ -289,13 +289,17 @@ if st.session_state.admin_logged_in:
             confirm_all = st.checkbox("Confirm deletion of ALL records", key="confirm_all")
             if st.button("🚨 Emergency Reset", key="delete_all"):
                 if confirm_all:
+                    # Delete all rows from the loans table
                     cursor.execute("DELETE FROM loans")
                     conn.commit()
-                    # Reload empty table
-                    df_new = pd.read_sql_query("SELECT rowid, * FROM loans", conn)
+
+                    # Reload empty table safely
+                    df_new = pd.read_sql_query("SELECT * FROM loans", conn)  # FIXED: no rowid
                     df_new_display = df_new.copy()
-                    df_new_display.insert(0, "ID", range(1, len(df_new_display)+1))
+                    # Add display ID safely even if table is empty
+                    df_new_display.insert(0, "ID", range(1, len(df_new_display) + 1))
                     st.session_state.df_display = df_new_display
+
                     refresh_table()
                     st.success("All data wiped out ✅")
                 else:
