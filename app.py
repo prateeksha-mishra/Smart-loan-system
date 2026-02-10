@@ -1,7 +1,6 @@
 import streamlit as st
 import sqlite3
 import pandas as pd
-import time
 import hashlib
 
 
@@ -253,7 +252,6 @@ if st.session_state.admin_logged_in:
         st.subheader("⛏️ Admin Tools: Data Management")
         col1, col2 = st.columns(2)
 
-        # --- Delete Single Record ---
         # --- Delete Single Record ---
         with col1:
             df_display = st.session_state.df_display
